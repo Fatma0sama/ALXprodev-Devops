@@ -8,18 +8,34 @@ if [ ! -f "${DATA_FILE}" ]; then
     exit 1
 fi
 
-# Use jq to extract the raw values. 
-# jq output will be newline-separated: name, height/10, weight/10, type
-read -r name formatted_height formatted_weight type <<< "$(jq -r '
-    .name, 
-    (.height / 10), 
-    (.weight / 10), 
-    .types[0].type.name' "${DATA_FILE}")"
+# 1. Use jq to extract the necessary raw values, separated by a custom delimiter (e.g., |).
+#    - .name (e.g., pikachu)
+#    - .height / 10 (e.g., 0.4)
+#    - .weight / 10 (e.g., 6)
+#    - .types[0].type.name (e.g., electric)
+# 2. Pipe the output to awk. awk processes the fields and creates the exact desired string format.
+# 3. Pipe the result to sed. sed capitalizes the first letter of the string (the name) and the type.
 
-# Capitalize the first letter of the name (since API names are lowercase)
-# and the type name to match the human-readable format.
-name=$(echo "${name}" | sed -E 's/(.)/\U\1/')
-type=$(echo "${type}" | sed -E 's/(.)/\U\1/')
-
-# Use the variables to construct the exact required output string.
-echo "${name} is of type ${type}, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
+jq -r '[
+    .name,
+    (.height / 10),
+    (.weight / 10),
+    .types[0].type.name
+] | join("|")' "${DATA_FILE}" | \
+awk -F'|' '
+    {
+        # Assign fields to variables
+        name=$1;
+        formatted_height=$2;
+        formatted_weight=$3;
+        type=$4;
+        
+        # Print the exact required string, but with uncapitalized variables (sed will fix it)
+        print name " is of type " type ", weighs " formatted_weight "kg, and is " formatted_height "m tall."
+    }
+' | \
+sed -E 's/(.)/\U\1/; s/ type ([a-z])/\nTYPE_PLACEHOLDER \1/' | \
+# Awk is already used, so we use sed to capitalize the Name and the Type field (tricky part)
+# Step 1: Capitalize the first letter of the line (Name)
+# Step 2: Temporarily replace " type X" with a newline and a placeholder, capitalizing X
+sed -E 's/^(.)/\U&/; s/ type ([a-z])/\U&/'
