@@ -1,0 +1,57 @@
+#!/bin/bash
+
+DATA_DIR="pokemon_data"
+REPORT_FILE="pokemon_report.csv"
+JSON_FILES="${DATA_DIR}/*.json"
+
+# Check if there are any JSON files to process
+if compgen -G "${JSON_FILES}" > /dev/null; then
+    echo "CSV Report generated at: ${REPORT_FILE}"
+    echo
+else
+    echo "Error: No JSON files found in ${DATA_DIR}. Please run Task 2 first."
+    exit 1
+fi
+
+# Initialize the CSV file with the header
+echo "Name,Height (m),Weight (kg)" > "${REPORT_FILE}"
+
+# Use jq to extract data from all JSON files and pipe it to awk
+# 1. jq extracts name, height (in metres), and weight (in kilograms) as a CSV string.
+# 2. awk is used to process the CSV data:
+#    - Print each line (the data for the CSV report).
+#    - Calculate the running sum of height and weight, and count the records (NR).
+# 3. The output of the awk's main block is redirected to the CSV file (appending).
+
+jq -r '[.name, (.height / 10), (.weight / 10)] | @csv' ${JSON_FILES} | \
+awk -F',' '
+    BEGIN {
+        # Total sum variables
+        sum_height = 0;
+        sum_weight = 0;
+        # Set the output field separator for the END block
+        OFS = "";
+    }
+    {
+        # Remove quotes for calculation
+        # $1=name(quoted), $2=height(m), $3=weight(kg)
+        height = $2;
+        weight = $3;
+
+        # Calculate running totals
+        sum_height += height;
+        sum_weight += weight;
+        
+        # Print the data line for the report
+        print $1 OFS $2 OFS $3 >> "'"${REPORT_FILE}"'"
+    }
+    END {
+        # Calculate averages and print the final report
+        avg_height = sum_height / NR;
+        avg_weight = sum_weight / NR;
+
+        printf "Average Height: %.2f m\n", avg_height;
+        printf "Average Weight: %.2f kg\n", avg_weight;
+    }
+' | sed 's/\"//g'
+# The final sed command removes quotes from the CSV data to match the sample output exactly.
