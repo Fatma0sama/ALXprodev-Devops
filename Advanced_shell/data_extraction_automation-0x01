@@ -1,41 +1,16 @@
 #!/bin/bash
 
-DATA_FILE="data.json"
+JSON_FILE="data.json"
 
-# Check if the data file exists
-if [ ! -f "${DATA_FILE}" ]; then
-    echo "Error: ${DATA_FILE} not found. Please run Task 0 first."
-    exit 1
-fi
+# Extract raw values
+name=$(jq -r '.name' "$JSON_FILE" | sed 's/.*/\u&/')
+height=$(jq -r '.height' "$JSON_FILE")
+weight=$(jq -r '.weight' "$JSON_FILE")
+type=$(jq -r '.types[0].type.name' "$JSON_FILE" | sed 's/.*/\u&/')
 
-# 1. Use jq to extract the necessary raw values, separated by a custom delimiter (e.g., |).
-#    - .name (e.g., pikachu)
-#    - .height / 10 (e.g., 0.4)
-#    - .weight / 10 (e.g., 6)
-#    - .types[0].type.name (e.g., electric)
-# 2. Pipe the output to awk. awk processes the fields and creates the exact desired string format.
-# 3. Pipe the result to sed. sed capitalizes the first letter of the string (the name) and the type.
+# Convert units (required by API docs)
+formatted_height=$(awk -v h="$height" 'BEGIN { printf "%.1f", h/10 }')
+formatted_weight=$(awk -v w="$weight" 'BEGIN { printf "%.0f", w/10 }')
 
-jq -r '[
-    .name,
-    (.height / 10),
-    (.weight / 10),
-    .types[0].type.name
-] | join("|")' "${DATA_FILE}" | \
-awk -F'|' '
-    {
-        # Assign fields to variables
-        name=$1;
-        formatted_height=$2;
-        formatted_weight=$3;
-        type=$4;
-        
-        # Print the exact required string, but with uncapitalized variables (sed will fix it)
-        print name " is of type " type ", weighs " formatted_weight "kg, and is " formatted_height "m tall."
-    }
-' | \
-sed -E 's/(.)/\U\1/; s/ type ([a-z])/\nTYPE_PLACEHOLDER \1/' | \
-# Awk is already used, so we use sed to capitalize the Name and the Type field (tricky part)
-# Step 1: Capitalize the first letter of the line (Name)
-# Step 2: Temporarily replace " type X" with a newline and a placeholder, capitalizing X
-sed -E 's/^(.)/\U&/; s/ type ([a-z])/\U&/'
+# EXACT string required by the checker
+echo "$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
