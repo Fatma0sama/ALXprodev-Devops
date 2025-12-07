@@ -38,7 +38,8 @@ for POKEMON_NAME in "${POKEMON_LIST[@]}"; do
     fetch_pokemon_data "${POKEMON_NAME}" & 
     sleep "${DELAY}"
 done
-Kill
+kill
+
 # Wait for all background jobs (started with &) to finish
 echo "Waiting for all background processes to complete..."
 wait
