@@ -4,7 +4,8 @@
 POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 API_BASE_URL="https://pokeapi.co/api/v2/pokemon/"
 DATA_DIR="pokemon_data"
-DELAY=0.5 # Small delay to space out background launches
+# Small delay to space out background launches (optional but good practice)
+DELAY=0.5
 
 # Create the data directory if it doesn't exist
 mkdir -p "${DATA_DIR}"
@@ -15,12 +16,15 @@ fetch_pokemon_data() {
     local API_URL="${API_BASE_URL}${POKEMON_NAME}"
     local FILE_PATH="${DATA_DIR}/${POKEMON_NAME}.json"
 
+    # Fetching status update - this will show up in the output mix
     echo "Fetching data for ${POKEMON_NAME}..."
 
+    # Use curl to fetch and save the data
     if curl -s "${API_URL}" -o "${FILE_PATH}"; then
         echo "Saved data to ${FILE_PATH} ✅"
     else
-        echo "Error: Failed to fetch data for ${POKEMON_NAME}."
+        echo "Error: Failed to fetch data for ${POKEMON_NAME}. Removing file."
+        # Remove potentially partial file on failure
         rm -f "${FILE_PATH}"
     fi
 }
@@ -30,12 +34,13 @@ echo "---"
 
 # Loop through the list and run the function in the background
 for POKEMON_NAME in "${POKEMON_LIST[@]}"; do
-    fetch_pokemon_data "${POKEMON_NAME}" & # The '&' runs the function in the background
-    sleep "${DELAY}" # Small delay to prevent overwhelming the system/API at once
+    # Run the fetch function as a background job
+    fetch_pokemon_data "${POKEMON_NAME}" & 
+    sleep "${DELAY}"
 done
 
-# Wait for all background jobs to finish
-echo "Waiting for all background jobs to complete..."
+# Wait for all background jobs (started with &) to finish
+echo "Waiting for all background processes to complete..."
 wait
 
 echo "---"
