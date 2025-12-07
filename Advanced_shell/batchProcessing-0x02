@@ -35,3 +35,59 @@ done
 
 echo "---"
 echo "Batch data fetching complete."
+
+#!/bin/bash
+
+# Define the list of Pokémon
+POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon" "bad_pokemon_name") # Added a bad name for testing error logic
+API_BASE_URL="https://pokeapi.co/api/v2/pokemon/"
+DATA_DIR="pokemon_data"
+ERROR_FILE="fetch_errors.txt"
+DELAY=2     # Delay in seconds between requests and retries
+MAX_RETRIES=3
+
+# Create the data directory if it doesn't exist and clear the error log
+mkdir -p "${DATA_DIR}"
+> "${ERROR_FILE}"
+echo "Starting batch data fetching with retry logic..."
+echo "---"
+
+# Loop through the list of Pokémon
+for POKEMON_NAME in "${POKEMON_LIST[@]}"; do
+    FILE_PATH="${DATA_DIR}/${POKEMON_NAME}.json"
+    API_URL="${API_BASE_URL}${POKEMON_NAME}"
+    RETRIES=0
+    SUCCESS=0
+
+    echo "Fetching data for ${POKEMON_NAME} (Attempt 1)..."
+
+    while [ ${RETRIES} -lt ${MAX_RETRIES} ] && [ ${SUCCESS} -eq 0 ]; do
+        # Make the API request. Use -s for silent mode.
+        # The -f option tells curl to fail silently on server errors (4xx or 5xx)
+        if curl -s -f "${API_URL}" -o "${FILE_PATH}"; then
+            echo "Saved data to ${FILE_PATH} ✅"
+            SUCCESS=1
+        else
+            RETRIES=$((RETRIES + 1))
+            if [ ${RETRIES} -lt ${MAX_RETRIES} ]; then
+                echo "Request failed for ${POKEMON_NAME}. Retrying in ${DELAY}s... (Attempt $((RETRIES + 1)))"
+                sleep "${DELAY}"
+            fi
+        fi
+    done
+
+    # Final check after loop
+    if [ ${SUCCESS} -eq 0 ]; then
+        ERROR_MESSAGE="$(date): Failed to fetch ${POKEMON_NAME} after ${MAX_RETRIES} attempts from ${API_URL}"
+        echo "Error: ${ERROR_MESSAGE}. See ${ERROR_FILE}"
+        echo "${ERROR_MESSAGE}" >> "${ERROR_FILE}"
+        # Clean up the file if the curl command failed multiple times
+        rm -f "${FILE_PATH}"
+    fi
+
+    # Add a delay after processing each Pokémon to respect rate limits
+    sleep "${DELAY}"
+done
+
+echo "---"
+echo "Batch data fetching complete."
