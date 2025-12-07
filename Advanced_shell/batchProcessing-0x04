@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Define the list of Pokémon
+POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+API_BASE_URL="https://pokeapi.co/api/v2/pokemon/"
+DATA_DIR="pokemon_data"
+DELAY=0.5 # Small delay to space out background launches
+
+# Create the data directory if it doesn't exist
+mkdir -p "${DATA_DIR}"
+
+# Function to fetch data for a single Pokémon
+fetch_pokemon_data() {
+    local POKEMON_NAME=$1
+    local API_URL="${API_BASE_URL}${POKEMON_NAME}"
+    local FILE_PATH="${DATA_DIR}/${POKEMON_NAME}.json"
+
+    echo "Fetching data for ${POKEMON_NAME}..."
+
+    if curl -s "${API_URL}" -o "${FILE_PATH}"; then
+        echo "Saved data to ${FILE_PATH} ✅"
+    else
+        echo "Error: Failed to fetch data for ${POKEMON_NAME}."
+        rm -f "${FILE_PATH}"
+    fi
+}
+
+echo "Starting parallel data fetching..."
+echo "---"
+
+# Loop through the list and run the function in the background
+for POKEMON_NAME in "${POKEMON_LIST[@]}"; do
+    fetch_pokemon_data "${POKEMON_NAME}" & # The '&' runs the function in the background
+    sleep "${DELAY}" # Small delay to prevent overwhelming the system/API at once
+done
+
+# Wait for all background jobs to finish
+echo "Waiting for all background jobs to complete..."
+wait
+
+echo "---"
+echo "Parallel data fetching complete."
