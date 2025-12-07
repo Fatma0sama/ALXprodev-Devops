@@ -8,35 +8,18 @@ if [ ! -f "${DATA_FILE}" ]; then
     exit 1
 fi
 
-# 1. Use jq to extract the name, height, weight, and the first type.
-#    - Name is directly available.
-#    - Height is in decimetres (1/10 of a metre), so divide by 10 for metres.
-#    - Weight is in hectograms (1/10 of a kilogram), so divide by 10 for kilograms.
-#    - Type is extracted from the 'types' array.
-# 2. The output of jq is separated by newlines.
-# 3. Use awk to reformat the output string.
-# 4. Use sed to capitalize the Pokémon name and the Type name for cleaner output.
+# Use jq to extract the raw values. 
+# jq output will be newline-separated: name, height/10, weight/10, type
+read -r name formatted_height formatted_weight type <<< "$(jq -r '
+    .name, 
+    (.height / 10), 
+    (.weight / 10), 
+    .types[0].type.name' "${DATA_FILE}")"
 
-EXTRACTED_DATA=$(jq -r '[
-    .name,
-    (.height / 10),
-    (.weight / 10),
-    .types[0].type.name
-] | @csv' "${DATA_FILE}" | awk -F',' '{
-    # $1=name, $2=height(m), $3=weight(kg), $4=type
-    # Remove quotes from fields
-    name=$1; gsub(/"/, "", name);
-    height=$2; gsub(/"/, "", height);
-    weight=$3; gsub(/"/, "", weight);
-    type=$4; gsub(/"/, "", type);
-    
-    # Print the formatted string for sed to process
-    printf "%s is of type %s, weighs %skg, and is %sm tall.\n", name, type, weight, height
-}')
+# Capitalize the first letter of the name (since API names are lowercase)
+# and the type name to match the human-readable format.
+name=$(echo "${name}" | sed -E 's/(.)/\U\1/')
+type=$(echo "${type}" | sed -E 's/(.)/\U\1/')
 
-# Use sed to capitalize the first letter of the Pokémon name and the Type
-# Note: The 'Pikachu' is already capitalized in the output, but this ensures capitalization
-# for both the name (start of the string) and the type.
-FORMATTED_OUTPUT=$(echo "${EXTRACTED_DATA}" | sed -E 's/^(.)/\U&/; s/type (.*),/type \U\1,/')
-
-echo "${FORMATTED_OUTPUT}"
+# Use the variables to construct the exact required output string.
+echo "${name} is of type ${type}, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
