@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Define the list of Pokémon
+POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+API_BASE_URL="https://pokeapi.co/api/v2/pokemon/"
+DATA_DIR="pokemon_data"
+DELAY=1 # Delay in seconds between requests
+
+# Create the data directory if it doesn't exist
+mkdir -p "${DATA_DIR}"
+
+echo "Starting batch data fetching..."
+echo "---"
+
+# Loop through the list of Pokémon
+for POKEMON_NAME in "${POKEMON_LIST[@]}"; do
+    FILE_PATH="${DATA_DIR}/${POKEMON_NAME}.json"
+    API_URL="${API_BASE_URL}${POKEMON_NAME}"
+
+    echo "Fetching data for ${POKEMON_NAME}..."
+
+    # Make the API request. Use -s for silent mode.
+    # The output is directly saved to the file.
+    if curl -s "${API_URL}" -o "${FILE_PATH}"; then
+        echo "Saved data to ${FILE_PATH} ✅"
+    else
+        echo "Error: Failed to fetch data for ${POKEMON_NAME}. Skipping."
+        # Clean up the file if the curl command failed (it might have created an empty or partial file)
+        rm -f "${FILE_PATH}"
+    fi
+
+    # Add a delay to prevent hitting API rate limits
+    sleep "${DELAY}"
+done
+
+echo "---"
+echo "Batch data fetching complete."
